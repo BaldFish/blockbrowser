@@ -20,20 +20,14 @@
 <script>
   import formatDate from "@/common/js/formatDate.js";
   import axios from "axios";
-  import _ from "lodash";
-  import {baseURL, baseContract, baseABI} from '@/common/js/public.js';
-  
-  const reqURL = `${baseURL}`;
-  const tradeURL = `${baseURL}/v1/txn`;
-  const contractAddress = `${baseContract}`;
-  //实例化web3对象
-  var Web3 = require("web3");
-  var web3 = new Web3();
-  web3.setProvider(new web3.providers.HttpProvider(reqURL));
-  //定义abi及调用合约
-  var abi = baseABI;
-  var MyContract = web3.eth.contract(abi);
-  var myContractInstance = MyContract.at(contractAddress);
+  import {baseURL} from '@/common/js/public.js';
+  import {BigNumber} from 'bignumber.js';
+  const searchBlockNumberURL = `${baseURL}/browser/v1/search?block_number=`;
+  const searchBlockHashURL = `${baseURL}/browser/v1/search?block_hash=`;
+  const searchAssetHashURL = `${baseURL}/browser/v1/search?asset_hash=`;
+  const searchAssetIdURL = `${baseURL}/browser/v1/search?asset_id=`;
+  const searchTradeHashURL = `${baseURL}/browser/v1/search?transaction_hash=`;
+  const searchAccountBalanceURL = `${baseURL}/browser/v1/search?address=`;
   export default {
     name: "home",
     components: {},
@@ -53,7 +47,6 @@
         searchTradejp: {},
         tradeData: {},
         searchAccountBalance: {},
-        searchAccountBalancejp: {},
         accountBalanceData: {},
       };
     },
@@ -114,83 +107,180 @@
         this.search_content = ""
       },
       search() {
+        this.searchTime = this.getSearchTime();
         if (this.search_content === "") {
           return
-        } else if (this.searchType === "区块高度" || this.searchType === "区块哈希") {//按区块高度或者区块哈希查询区块信息
-          this.searchTime = this.getSearchTime();
-          this.searchBlock = web3.eth.getBlock(this.search_content);
-          if (this.searchBlock === null) {
+        } else if (this.searchType === "区块高度") {//按区块高度查询区块信息
+          axios({
+            method: "GET",
+            url: `${searchBlockNumberURL}${this.search_content}`
+          }).then((res) => {
+            res.data.number=parseInt(res.data.number,16);
+            res.data.timestamp=parseInt(res.data.timestamp,16)*1000;
+            res.data.timestamp = formatDate(new Date(res.data.timestamp), "yyyy-MM-dd hh:mm:ss");
+            this.searchBlock=res.data;
+            this.searchBlockjp = this.syntaxHighlight(this.searchBlock);
+            this.blockData.searchTime = this.searchTime;
+            this.blockData.searchBlock = this.searchBlock;
+            this.blockData.searchBlockjp = this.searchBlockjp;
+            this.getBlockData();
+            this.getSearchType();
+            this.getSearchInput();
+            this.clearSearch();
+            window.location.href = "#/browser/blockDetails"
+          }).catch((err) => {
             this.searchBlock = "";
             this.searchBlockjp = "您输入的区块高度有误!!!"
-          } else {
-            this.searchBlock.timestamp = formatDate(
-              new Date(this.searchBlock.timestamp * 1000),
-              "yyyy-MM-dd hh:mm:ss"
-            );
+            this.blockData.searchTime = this.searchTime;
+            this.blockData.searchBlock = this.searchBlock;
+            this.blockData.searchBlockjp = this.searchBlockjp;
+            this.getBlockData();
+            this.getSearchType();
+            this.getSearchInput();
+            this.clearSearch();
+            window.location.href = "#/browser/blockDetails"
+          })
+        }else if(this.searchType === "区块哈希"){
+          axios({
+            method: "GET",
+            url: `${searchBlockHashURL}${this.search_content}`
+          }).then((res) => {
+            res.data.number=parseInt(res.data.number,16);
+            res.data.timestamp=parseInt(res.data.timestamp,16)*1000;
+            res.data.timestamp = formatDate(new Date(res.data.timestamp), "yyyy-MM-dd hh:mm:ss");
+            this.searchBlock=res.data;
             this.searchBlockjp = this.syntaxHighlight(this.searchBlock);
-          }
-          this.blockData.searchTime = this.searchTime;
-          this.blockData.searchBlock = this.searchBlock;
-          this.blockData.searchBlockjp = this.searchBlockjp;
-          this.getBlockData();
-          this.getSearchType();
-          this.getSearchInput();
-          this.clearSearch();
-          window.location.href = "#/browser/blockDetails"
-        } else if (this.searchType === "资产哈希" || this.searchType === "资产ID") {
-          this.searchTime = this.getSearchTime();
-          this.searchAsset = myContractInstance.acquireVerify(this.search_content);
-          if (this.searchAsset[0] === "0x0000000000000000000000000000000000000000") {
-            this.searchAsset[0] = "";
-            this.searchAssetjp = "您输入的资产信息有误!!!";
-          } else {
+            this.blockData.searchTime = this.searchTime;
+            this.blockData.searchBlock = this.searchBlock;
+            this.blockData.searchBlockjp = this.searchBlockjp;
+            this.getBlockData();
+            this.getSearchType();
+            this.getSearchInput();
+            this.clearSearch();
+            window.location.href = "#/browser/blockDetails"
+          }).catch((err) => {
+            this.searchBlock = "";
+            this.searchBlockjp = "您输入的区块高度有误!!!"
+            this.blockData.searchTime = this.searchTime;
+            this.blockData.searchBlock = this.searchBlock;
+            this.blockData.searchBlockjp = this.searchBlockjp;
+            this.getBlockData();
+            this.getSearchType();
+            this.getSearchInput();
+            this.clearSearch();
+            window.location.href = "#/browser/blockDetails"
+          })
+        } else if (this.searchType === "资产哈希") {
+          axios({
+            method: "GET",
+            url: `${searchAssetHashURL}${this.search_content}`,
+          }).then((res) => {
+            res.data.created_at = formatDate(new Date(res.data.created_at), "yyyy-MM-dd hh:mm:ss");
+            res.data.updated_at = formatDate(new Date(res.data.updated_at), "yyyy-MM-dd hh:mm:ss");
+            this.searchAsset=res.data;
             this.searchAssetjp = this.syntaxHighlight(this.searchAsset);
-          }
-          this.assetData.searchTime = this.searchTime;
-          this.assetData.searchAsset = this.searchAsset;
-          this.assetData.searchAssetjp = this.searchAssetjp;
-          this.getAssetData();
-          this.getSearchType();
-          this.getSearchInput();
-          this.clearSearch();
-          window.location.href = "#/browser/assetDetails"
+            this.assetData.searchTime = this.searchTime;
+            this.assetData.searchAsset = this.searchAsset;
+            this.assetData.searchAssetjp = this.searchAssetjp;
+            this.getAssetData();
+            this.getSearchType();
+            this.getSearchInput();
+            this.clearSearch();
+            window.location.href = "#/browser/assetDetails"
+          }).catch((err) => {
+            this.searchAsset={};
+            this.searchAssetjp = "您输入的资产哈希有误!!!";
+            this.assetData.searchTime = this.searchTime;
+            this.assetData.searchAsset = this.searchAsset;
+            this.assetData.searchAssetjp = this.searchAssetjp;
+            this.getAssetData();
+            this.getSearchType();
+            this.getSearchInput();
+            this.clearSearch();
+            window.location.href = "#/browser/assetDetails"
+          })
+        } else if (this.searchType === "资产ID") {
+          axios({
+            method: "GET",
+            url: `${searchAssetIdURL}${this.search_content}`,
+          }).then((res) => {
+            res.data.created_at = formatDate(new Date(res.data.created_at), "yyyy-MM-dd hh:mm:ss");
+            res.data.updated_at = formatDate(new Date(res.data.updated_at), "yyyy-MM-dd hh:mm:ss");
+            this.searchAsset=res.data;
+            this.searchAssetjp = this.syntaxHighlight(this.searchAsset);
+            this.assetData.searchTime = this.searchTime;
+            this.assetData.searchAsset = this.searchAsset;
+            this.assetData.searchAssetjp = this.searchAssetjp;
+            this.getAssetData();
+            this.getSearchType();
+            this.getSearchInput();
+            this.clearSearch();
+            window.location.href = "#/browser/assetDetails"
+          }).catch((err) => {
+            this.searchAsset={};
+            this.searchAssetjp = "您输入的资产哈希有误!!!";
+            this.assetData.searchTime = this.searchTime;
+            this.assetData.searchAsset = this.searchAsset;
+            this.assetData.searchAssetjp = this.searchAssetjp;
+            this.getAssetData();
+            this.getSearchType();
+            this.getSearchInput();
+            this.clearSearch();
+            window.location.href = "#/browser/assetDetails"
+          })
         } else if (this.searchType === "交易哈希") {
-          this.searchTime = this.getSearchTime();
-          try {
-            this.searchTrade = web3.eth.getTransaction(this.search_content);
+          axios({
+            method: "GET",
+            url: `${searchTradeHashURL}${this.search_content}`,
+          }).then((res) => {
+            this.searchTrade=res.data;
             this.searchTradejp = this.syntaxHighlight(this.searchTrade);
-          } catch (e) {
+            this.tradeData.searchTime = this.searchTime;
+            this.tradeData.searchTrade = this.searchTrade;
+            this.tradeData.searchTradejp = this.searchTradejp;
+            this.getTradeData();
+            this.getSearchType();
+            this.getSearchInput();
+            this.clearSearch();
+            window.location.href = "#/browser/tradeDetails"
+          }).catch((err) => {
             this.searchTrade = "";
             this.searchTradejp = "您输入的交易哈希有误!!!";
-          }
-          this.tradeData.searchTime = this.searchTime;
-          this.tradeData.searchTrade = this.searchTrade;
-          this.tradeData.searchTradejp = this.searchTradejp;
-          this.getTradeData();
-          this.getSearchType();
-          this.getSearchInput();
-          this.clearSearch();
-          window.location.href = "#/browser/tradeDetails"
+            this.tradeData.searchTime = this.searchTime;
+            this.tradeData.searchTrade = this.searchTrade;
+            this.tradeData.searchTradejp = this.searchTradejp;
+            this.getTradeData();
+            this.getSearchType();
+            this.getSearchInput();
+            this.clearSearch();
+            window.location.href = "#/browser/tradeDetails";
+          })
         } else if (this.searchType === "账户余额") {
-          this.searchTime = this.getSearchTime();
-          try {
-            this.searchAccountBalance.result = web3.eth.getBalance(this.search_content);
+          axios({
+            method: "GET",
+            url: `${searchAccountBalanceURL}${this.search_content}`,
+          }).then((res) => {
             this.searchAccountBalance.id = this.search_content;
-            this.searchAccountBalance.result = this.searchAccountBalance.result.dividedBy(1e+18).toString();
-          } catch (e) {
-            this.searchAccountBalance.id = "您输入的账户地址有误!!!";
-            this.searchAccountBalance.result = "";
-          }
-          this.accountBalanceData.searchTime = this.searchTime;
-          this.accountBalanceData.searchAccountBalance = this.searchAccountBalance;
-          this.accountBalanceData.searchAccountBalancejp = this.searchAccountBalancejp;
-          this.getAccountBalanceData();
-          this.getSearchType();
-          this.getSearchInput();
-          this.clearSearch();
-          window.location.href = "#/browser/balanceDetails"
+            this.searchAccountBalance.result=new BigNumber(Number(res.data.result)).dividedBy(1e+18).toFormat(2);;
+            this.accountBalanceData.searchTime = this.searchTime;
+            this.accountBalanceData.searchAccountBalance = this.searchAccountBalance;
+            this.getAccountBalanceData();
+            this.getSearchType();
+            this.getSearchInput();
+            this.clearSearch();
+            window.location.href = "#/browser/balanceDetails"
+          }).catch((err) => {
+            this.searchAccountBalance.id = this.search_content;
+            this.searchAccountBalance.result  = "您输入的账户地址有误!!!";
+            this.accountBalanceData.searchTime = this.searchTime;
+            this.accountBalanceData.searchAccountBalance = this.searchAccountBalance;
+            this.getAccountBalanceData();
+            this.getSearchType();
+            this.getSearchInput();
+            this.clearSearch();
+            window.location.href = "#/browser/balanceDetails"
+          })
         }
-        
       },
       getBlockData() {
         this.$store.commit("changeBlockData", this.blockData);

@@ -14,20 +14,21 @@
             <li>创建时间：</li>
           </ul>
           <ul class="middle_right">
-            <li>{{assetData.searchAsset[0]}}</li>
-            <li>{{assetData.searchAsset[3]}}</li>
-            <li>{{assetData.searchAsset[1]}}</li>
-            <li>{{assetData.searchAsset[2]}}</li>
-            <li>{{assetData.searchAsset[3]}}</li>
-            <li>{{assetData.searchAsset[4]}}</li>
+            <li>{{assetData.searchAsset.asset_ower}}</li>
+            <li>{{assetData.searchAsset.asset_id}}</li>
+            <li>{{assetData.searchAsset.asset_name}}</li>
+            <li>{{assetData.searchAsset.asset_content}}</li>
+            <li>{{assetData.searchAsset.asset_hash}}</li>
+            <li>{{assetData.searchAsset.created_at}}</li>
           </ul>
         </div>
       </div>
       <div class="block_info_th_right">
         <h3>所属人</h3>
         <div class="th_right_md">
-          <img src="./images/logo_launch_save.png" alt="">
-          <p>深圳市元征科技股份有限公司</p>
+          <img :src="assetData.searchAsset.image_url" alt="">
+          <p>{{assetData.searchAsset.asset_owner_name}}</p>
+          <p>{{assetData.searchAsset.asset_ower}}</p>
         </div>
       </div>
       <div class="block_info_tb">
@@ -39,14 +40,7 @@
 </template>
 
 <script>
-  import formatDate from "@/common/js/formatDate.js";
   import mySearch from "./search";
-  import {baseURL, baseContract, baseABI} from '@/common/js/public.js';
-  const reqURL = `${baseURL}`;
-  var Web3 = require("web3");
-  var web3 = new Web3();
-  web3.setProvider(new web3.providers.HttpProvider(reqURL));
-  
   export default {
     name: "assetDetails",
     components: {
@@ -214,13 +208,14 @@
           border-radius: 10px 10px 0px 0px;
         }
         .th_right_md {
-          font-size 14px
+          font-size 0
           color: #666666;
           padding 10px
           img {
-            margin 11px
+            margin-top 30px
           }
           p {
+            font-size 14px
             line-height 34px
             overflow: hidden;
             white-space: nowrap;

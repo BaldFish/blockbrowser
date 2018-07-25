@@ -33,7 +33,7 @@
 <script>
   import formatDate from "@/common/js/formatDate.js";
   import mySearch from "./search"
-  import {baseURL,baseContract,baseABI} from '@/common/js/public.js';
+  import {baseURL} from '@/common/js/public.js';
   const reqURL = `${baseURL}`;
   var Web3 = require("web3");
   var web3 = new Web3();

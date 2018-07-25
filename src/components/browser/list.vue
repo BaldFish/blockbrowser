@@ -9,23 +9,23 @@
         <ul class="count">
           <li>
             <span>当前区块高度：</span>
-            <span>{{blockCounts}}</span>
+            <span>{{headData.eth_blockNumber}}</span>
           </li>
           <li>
             <span>最新出块时间：</span>
-            <span>{{diffTime}}</span>
+            <span>{{headData.eth_blockTime}}</span>
           </li>
           <li>
             <span>合作方数量：</span>
-            <span>{{partnerCounts}}</span>
+            <span>{{headData.eth_partnerNumber}}</span>
           </li>
           <li>
             <span>交易数量：</span>
-            <span>{{transactionCounts}}</span>
+            <span>{{headData.eth_transactionNumber}}</span>
           </li>
           <li>
             <span>资产数量：</span>
-            <span>{{assetCounts}}</span>
+            <span>{{headData.eth_assetNumber}}</span>
           </li>
         </ul>
       </div>
@@ -54,21 +54,22 @@
         </div>
         <div class="info">
           <ul class="info_th">
-            <li style="width:164px">所属人</li>
-            <li style="width:716px">资产ID</li>
-            <li style="width:152px">资产类型</li>
-            <li style="width:168px">创建时间</li>
+            <li style="width:218px">所属人</li>
+            <li style="width:462px">资产哈希</li>
+            <li style="width:252px">资产名称</li>
+            <li style="width:268px">创建时间</li>
           </ul>
           <ul class="info_tb saves even" v-for="(item,index) in assets">
             <li style="width:218px" class="apply">
               <a href="javascript:void(0)">
-                <img src="./images/logo_launch_small.png" alt="">
+                <img :src="item.image_url" alt="">
               </a>
-              <p>深圳市元征科技股份有限公司</p>
+              <p>{{item.asset_owner_name}}</p>
+              <p>{{item.asset_ower}}</p>
             </li>
-            <li style="width:662px;cursor:pointer" @click="clickAsset($event)">{{item[3]}}</li>
-            <li style="width:152px">{{item[1]}}</li>
-            <li style="width:168px">{{item[4]}}</li>
+            <li style="width:462px;cursor:pointer" @click="clickAsset($event)">{{item.asset_hash}}</li>
+            <li style="width:252px">{{item.asset_name}}</li>
+            <li style="width:268px">{{item.created_at}}</li>
           </ul>
         </div>
       </div>
@@ -81,19 +82,11 @@
   import formatDate from "@/common/js/formatDate.js";
   import axios from "axios";
   import _ from "lodash";
-  import {baseURL, baseContract, baseABI} from '@/common/js/public.js';
+  import {baseURL} from '@/common/js/public.js';
   
-  const reqURL = `${baseURL}`;
-  const tradeURL = `${baseURL}/v1/txn`;
-  const contractAddress = `${baseContract}`;
-  //实例化web3对象
-  var Web3 = require("web3");
-  var web3 = new Web3();
-  web3.setProvider(new web3.providers.HttpProvider(reqURL));
-  //定义abi及调用合约
-  var abi = baseABI;
-  var MyContract = web3.eth.contract(abi);
-  var myContractInstance = MyContract.at(contractAddress);
+  const headURL = `${baseURL}/browser/v1/head`;
+  const blockURL = `${baseURL}/browser/v1/block-list`;
+  const assetURL = `${baseURL}/browser/v1/assets`;
   export default {
     name: "list",
     components: {
@@ -101,6 +94,7 @@
     },
     data() {
       return {
+        headData:{},
         blockCounts: "",
         diffTime: "",
         partnerCounts: "",
@@ -110,10 +104,10 @@
         click_block: "",
         blockData: {},
         assets: [],
-        click_asset:"",
-        assetData:{},
+        click_asset: "",
+        assetData: {},
         transactions: [],
-        searchBlock:{},
+        searchBlock: {},
         searchBlockjp: {},
         searchAsset: {},
         searchAssetjp: {},
@@ -127,14 +121,8 @@
       }
     },
     mounted() {
-      // 获取区块数量
-      this.getBlockCounts();
-      //获取合作方数量
-      this.getTradeCounts();
-      //获取交易数量
-      this.getPartnerCounts();
-      //获取资产数量
-      this.getAssetCounts();
+      //获取顶部数据
+      this.getHeadData()
       //获取区块列表
       this.getNewBlocksList();
       //获取资产列表
@@ -142,84 +130,43 @@
       //每隔15秒重新获取数据
       var that = this;
       setInterval(function () {
-        //获取最新合作方数量
-        that.getTradeCounts();
-        //获取最新交易数量
-        that.getPartnerCounts();
-        // 获取最新区块数量和最新区块列表
-        var blockCounts = that.blockCounts;
-        that.getBlockCounts();
-        var newBlockCounts = that.blockCounts - blockCounts;
-        if (newBlockCounts === 0) {
-        } else if (10 > newBlockCounts > 0) {
-          for (var i = 1; i <= newBlockCounts; i++) {
-            var newInfo = web3.eth.getBlock(i + blockCounts);
-            newInfo.timestamp = formatDate(
-              new Date(newInfo.timestamp * 1000),
-              "yyyy-MM-dd hh:mm:ss"
-            );
-            that.blocks.unshift(newInfo);
-            if (that.blocks.length > 10) {
-              that.blocks.pop();
-            }
-          }
-        } else {
-          for (var i = blockCounts; i > blockCounts - 10; i--) {
-            var info = web3.eth.getBlock(i);
-            info.timestamp = formatDate(
-              new Date(info.timestamp * 1000),
-              "yyyy-MM-dd hh:mm:ss"
-            );
-            that.blocks.push(info);
-            if (this.blocks.length > 10) {
-              that.blocks.pop();
-            }
-          }
-        }
-        // 获取最新资产数量和最新资产列表
-        var assetCounts = that.assetCounts;
-        that.getAssetCounts();
-        var newAssetCounts = that.assetCounts - assetCounts;
-        if (newAssetCounts === 0) {
-        } else if (10 > newAssetCounts > 0) {
-          for (var i = 0; i < newAssetCounts; i++) {
-            that.assets.unshift(
-              myContractInstance.attestByIndex(parseInt(that.assetCounts) + i)
-            );
-            if (that.assets.length > 10) {
-              that.assets.pop();
-            }
-            that.assets = that.assets.sort(function (a, b) {
-              return b[4] - a[4];
-            });
-          }
-        }else {
-          for (var i = 0; i < 10; i++) {
-            that.assets.unshift(
-              myContractInstance.attestByIndex(parseInt(that.assetCounts) + i)
-            );
-            if (that.assets.length > 10) {
-              that.assets.pop();
-            }
-            that.assets = that.assets.sort(function (a, b) {
-              return b[4] - a[4];
-            });
-          }
-        }
+        //获取顶部数据
+        that.getHeadData();
+        // 获取最新区块列表
+        that.getNewBlocksList()
+        // 获取最新最新资产列表
+        that.getNewAssetsList()
       }, 15000);
     },
     watch: {
       //获取最新出块时间
-      blocks: function () {
+      /*blocks: function () {
         if (this.blocks.length > 1) {
           this.getDiffTime();
         }
-      }
+      }*/
     },
     methods: {
       //跳转主页
       turnHome() {
         window.location.href = "/"
+      },
+      //获取顶部数据
+      getHeadData(){
+        axios({
+          method: "GET",
+          url: `${headURL}`,
+        }).then((res) => {
+          this.headData=res.data
+        }).catch((err) => {
+          this.headData={
+            "eth_blockNumber": "",// 当前区块高度
+            "eth_blockTime": "",// 最新出块时间
+            "eth_partnerNumber": "",// 合作方数量
+            "eth_transactionNumber": "",// 交易数量
+            "eth_assetNumber": "" // 资产数量
+          }
+        })
       },
       //获取最新出块时间
       getDiffTime() {
@@ -251,7 +198,21 @@
         this.assetCounts = myContractInstance.attestsNunber().c.toString();
       },
       //获取区块列表
-      getNewBlocksList() {
+      getNewBlocksList(){
+        axios({
+          method: "GET",
+          url: `${blockURL}`,
+        }).then((res) => {
+          for(let v of res.data){
+            v.number=parseInt(v.number,16);
+            v.timestamp=parseInt(v.timestamp,16)*1000;
+            v.timestamp=formatDate(new Date(v.timestamp), "yyyy-MM-dd hh:mm:ss");
+          }
+          this.blocks=res.data;
+        }).catch((err) => {
+        })
+      },
+      /*getNewBlocksList() {
         //获取最新10个区块信息
         if (this.blockCounts > 9) {//如果区块数大于等于10取10块区块信息
           for (var i = this.blockCounts; i > this.blockCounts - 10; i--) {
@@ -272,9 +233,22 @@
             this.blocks.push(info);
           }
         }
-      },
+      },*/
       //获取资产列表
       getNewAssetsList() {
+        axios({
+          method: "GET",
+          url: `${assetURL}`,
+        }).then((res) => {
+          for(let v of res.data.data){
+            v.created_at=formatDate(new Date(v.created_at), "yyyy-MM-dd hh:mm:ss");
+            v.updated_at=formatDate(new Date(v.updated_at), "yyyy-MM-dd hh:mm:ss");
+          }
+          this.assets=res.data.data;
+        }).catch((err) => {
+        })
+      },
+      /*getNewAssetsList() {
         if (this.assetCounts > 9) {//如果存证数大于等于10取10个存证信息
           for (var i = this.assetCounts - 1; i > this.assetCounts - 11; i--) {
             this.assets.push(myContractInstance.attestByIndex(i));
@@ -290,7 +264,8 @@
             });
           }
         }
-      },
+      },*/
+      
       //获取查询时间
       getSearchTime() {
         return formatDate(new Date(), "yyyy-MM-dd hh:mm:ss");
@@ -344,12 +319,12 @@
         this.getBlockData();
         window.location.href = "#/browser/blockDetails";
       },
-      clickAsset(){
+      clickAsset() {
         this.click_asset = event.target.innerText;
         this.searchTime = this.getSearchTime();
         var that = this;
         this.searchAsset = _.find(that.assets, function (o) {
-          return o[3] === that.click_asset;
+          return o.asset_hash === that.click_asset;
         });
         this.searchAssetjp = this.syntaxHighlight(this.searchAsset);
         this.assetData.searchTime = this.searchTime;
@@ -469,26 +444,40 @@
               padding-left: 0px;
               text-align: center;
               line-height: normal;
-              
-              a {
-                display: inline-block;
-                padding-top: 8px;
+              font-size 0
+              a{
+                display inline-block
+                margin-top 10px
+                width 40px
+                height 40px
+                img{
+                  width:auto;
+                  height:auto;
+                  max-width:100%;
+                  max-height:100%;
+                }
+              }
+              p{
+                padding-top 5px
+                font-size 14px
               }
             }
           }
           
           .saves {
-            height: 82px;
+            height: 100px;
             
             li {
-              height: 82px;
-              line-height: 82px;
+              height: 100px;
+              line-height: 100px;
               border-right: 1px solid #a0a0a0;
               border-bottom: 1px solid #a0a0a0;
               p {
                 overflow: hidden;
                 white-space: nowrap;
                 text-overflow: ellipsis;
+                padding-left 20px
+                padding-right 20px
               }
             }
           }
