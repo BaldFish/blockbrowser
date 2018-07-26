@@ -445,6 +445,7 @@
               text-align: center;
               line-height: normal;
               font-size 0
+              vertical-align top
               a{
                 display inline-block
                 margin-top 10px
